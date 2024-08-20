@@ -1,0 +1,1021 @@
+---
+title: "Colocalization"
+output: 
+  flexdashboard::flex_dashboard: 
+      theme: cerulean
+  vertical_layout: scroll  
+runtime: shiny
+---
+  
+```{r setup, include=FALSE}
+library(shiny)
+#library(shinydashboard)
+library(plotly)
+library(RColorBrewer)
+library(tidyr)
+#library(keys)
+library(stringr)
+library(plyr)
+library(DT)
+source('prepare_plate_functions.R')
+source('prepare_plate_functions2.R')
+
+```
+
+
+Plate1 {data-width=250}
+==============================================================================
+
+Heatmap_page1 {data-width=250 .sidebar }
+-----------------------------------------------------------------------
+
+```{r Heatmap1_Inputs,echo=FALSE}
+textInput(inputId = 'descript1',label = 'Protein Description', value = 'TOR1')
+selectInput(inputId = 'prot1', label='first protein', 
+            choices = c('1m3u','1pok','1pok-stationary','2cg4','2vyc','2an9','2iv1','1frw','1d7a','1yac','1l6w','2wcv','3n75'),
+            selected = '1pok')
+selectInput(inputId = 'cluster1',label ='Organize rows',choices = c('No','Cluster','Color Wt','Color Fiber','Color misfolded'
+                                                                       ,'N Wt','N Fiber','N misfolded'),selected = 'No')
+radioButtons(inputId = 'autoscale1',label = 'Autoscale',choices=c('No','Yes'),selected = 'No',inline = TRUE)
+radioButtons(inputId = 'puncta1',label = 'Cells with YFP Puncta only',choices=c('No','Yes'),selected = 'No',inline = TRUE)
+radioButtons(inputId = 'showcontrol1',label = 'Show control plate', choices = c("No","Yes"),selected = 'Yes',inline = TRUE)
+selectInput(inputId = 'measure1', label='Which metric to use', 
+                choices = c('10% brightest pixels overlap' , "GFP-RFP Correlation of 70% brigtest pixels",'RFP mean','RFP mean normalized','RFP max','Pearson of largest YFP Foci','Pearson of largest YFP Foci+vicinity','Pearson of 2nd largest YFP Foci','Pearson of 2nd largest YFP Foci+vicinity'),
+                selected = '10% brightest pixels overlap')
+selectInput(inputId = 'Showloc1', label='Show only genes with X localization', 
+                choices = c('All','Cytosol',"Nucleus","Mitochondria","Endoplasmic-Reticulum","Vacuole","Plasma-membrane",'budneck'),
+                selected = 'All')
+selectInput(inputId = 'Category1', label='Show only genes in X category', 
+                choices = c('All','Chaperone',"Fiber-forming","Structural","DNA-related","Prion","RNA-related"),
+                selected = 'All')
+radioButtons(inputId = 'keys1',label='',choices = c('1','2'),selected = '1',inline = TRUE)
+h4('press 1 for Red+Green')
+h4('press 2 for Red')
+# useKeys()
+# keysInput('keys',c('1','2'))
+```
+
+## Prot-desciption1
+
+```{r Heatmap1_descript, echo=FALSE}
+output$description1 = renderText({
+    descriptions1 = read.csv(file = "Organism_Genes.csv", header = FALSE)
+    
+    if ((length(as.character(input$descript1 >= 4 ))) & (as.character(input$descript1) %in% descriptions1[,1])){
+      print(paste(input$descript1,'-',
+        as.character(descriptions1[(descriptions1[,1] == input$descript1) ,6])))
+    }
+  })
+textOutput("description1")
+```
+
+<center> ......................................................................................................... </center>
+
+```{r Heatmap1_Protname}
+output$protname1 <- renderText({
+  print(input$prot1)
+  })
+textOutput("protname1")
+```
+
+
+```{r Heatmap1_Heatmap}
+
+ # Add directory of static resources to Shiny's web server
+addResourcePath(prefix = "imgResources", directoryPath = "myImages")
+
+#Modify the csv to load and plotly arguements based on buttons
+output$hoverplot1 <- renderPlotly({
+  if ('Yes' %in% input$puncta1){
+      puncta='-onlypuncta'
+  }
+  else{ puncta=''}
+  if('10% brightest pixels overlap' %in% input$measure1){ 
+      heat_title = 'Colocalization'
+      z_max = 0.7
+      z_min = 0 
+      method=''
+      if ('Cluster' %in% input$cluster1){to_order = 'colocalization'} 
+      else {to_order = ''}
+      }
+  else if('GFP-RFP Correlation of 70% brigtest pixels' %in% input$measure1){ 
+      heat_title = 'Correlation'
+      z_max = 0.8
+      z_min = -0.8 
+      method = '-cor'
+      if ('Cluster' %in% input$cluster1){to_order = 'correlation'} 
+      else {to_order = ''}
+    }
+    else if('RFP mean' %in% input$measure1){  
+      heat_title = 'RFP intensity'
+      z_max = 9000
+      z_min = 0 
+      method='-RFPmean'
+      if ('Cluster' %in% input$cluster1){to_order = 'RFPmean'} 
+      else {to_order = ''}
+    }
+      else if('RFP max' %in% input$measure1){  
+      heat_title = 'RFP Maximal intensity'
+      z_max = 9000
+      z_min = 0 
+      method='-RFPmax'
+      if ('Cluster' %in% input$cluster1){to_order = 'RFPmax'} 
+      else {to_order = ''}
+      }      
+         else if('RFP mean normalized' %in% input$measure1){  
+      heat_title = 'RFP normalized mean intensity'
+      z_max = 1.6
+      z_min = 0.4 
+      method='-RFPmean'
+      if ('Cluster' %in% input$cluster1){to_order = 'RFPmean'} 
+      else {to_order = ''}
+        }      
+      else if('Pearson of largest YFP Foci' %in% input$measure1){  
+      heat_title = 'GFP pcc 1st Foci'
+      z_max = 0.5
+      z_min = -0.5 
+      method='-1pcc'
+      if ('Cluster' %in% input$cluster1){to_order = 'correlation'} 
+      else {to_order = ''}
+      }
+      else if('Pearson of largest YFP Foci+vicinity' %in% input$measure1){  
+      heat_title = 'GFP pcc 1st Foci+surrounding'
+      z_max = 0.5
+      z_min = -0.5 
+      method='-1pcc_enlarge'
+      if ('Cluster' %in% input$cluster1){to_order = 'correlation'} 
+      else {to_order = ''}
+      }
+      else if('Pearson of 2nd largest YFP Foci' %in% input$measure1){  
+      heat_title = 'GFP pcc 2nd Foci'
+      z_max = 0.5
+      z_min = -0.5 
+      method='-2pcc'
+      if ('Cluster' %in% input$cluster1){to_order = 'correlation'} 
+      else {to_order = ''}
+      }
+      else if('Pearson of 2nd largest YFP Foci+vicinity' %in% input$measure1){  
+      heat_title = 'GFP pcc 2nd Foci+surrounding'
+      z_max = 0.5
+      z_min = -0.5 
+      method='-2pcc_enlarge'
+      if ('Cluster' %in% input$cluster1){to_order = 'correlation'} 
+      else {to_order = ''}
+    }
+    if ('N Wt' %in% input$cluster1){to_order = 'N Wt'}
+    else if ('N Fiber' %in% input$cluster1){to_order ='N Fiber'}
+    else if ('N misfolded' %in% input$cluster1){to_order ='N misfolded'}
+    else if ('Color Wt' %in% input$cluster1){to_order ='Color Wt'}
+    else if ('Color Fiber' %in% input$cluster1){to_order ='Color Fiber'}
+    else if ('Color misfolded' %in% input$cluster1){to_order ='Color misfolded'}
+  if (!('3n75'  %in% input$prot1)){
+    if ('RFP mean normalized' %in% input$measure1){
+      dt1 = prepare_plate(name = input$prot1, file = paste0("Data/colocalization-data-",input$prot1,'-RFPmean',puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1,norm='RFPnorm')
+    }
+    else{
+    dt1 = prepare_plate(name = input$prot1, file = paste0("Data/colocalization-data-",input$prot1,method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    }
+    ##Adding YFP / Empty column to each plate
+    if ((!('1m3u-stationary' %in% input$prot1)) & (!('1pok-stationary' %in% input$prot1)) & (!('No' %in% input$showcontrol1))){
+    dt1control = prepare_plate(name = "1pokY", file = paste0("Data/colocalization-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dt1control = rbind(dt1control[which(dt1control$strain == 'YFP'),] , dt1control[which(dt1control$strain == 'Empty'),])
+    dt1=rbind(dt1,dt1control)
+    }
+    ## Removing column that are not relevant (nothing / 3n75)
+    dt1 = dt1[(which(dt1$strain != 'nothing')),]
+    dt1 = dt1[(which(dt1$strain != 'X3n75.fiber')),]
+    dt1 = dt1[(which(dt1$strain != 'X3n75.wt')),]
+    dt1 = dt1[(which(dt1$strain != 'X1pok.fiber2')),]
+  }
+  else{
+    dt1 =  prepare_plate(name = '1frw', file = paste0("Data/colocalization-data-1frw",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dt1 = dt1[which(dt1$strain == 'X3n75.wt'),]
+    dtfib = prepare_plate(name = '1yac', file = paste0("Data/colocalization-data-1yac",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dt1 = rbind(dt1[which(dt1$strain == 'X3n75.wt'),] , dtfib[which(dtfib$strain == 'X3n75.fiber'),])
+    dt1control = prepare_plate(name = input$prot1, file = paste0("Data/colocalization-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dt1 = rbind(dt1,dt1control[which(dt1control$strain == 'YFP'),] , dt1control[which(dt1control$strain == 'Empty'),])
+}
+
+ #Plots the heatmap     
+    plot_ly(dt1[{
+      (dt1$ncells >= 20) &
+      (if ('All' %in% input$Showloc1){(dt1$cytosol == 0) | (dt1$cytosol == 1)}
+      else if ('Cytosol' %in% input$Showloc1){dt1$cytosol ==1}
+      else if ('Mitochondria' %in% input$Showloc1){dt1$mitochondria ==1}
+      else if ('Endoplasmic-Reticulum' %in% input$Showloc1){dt1$ER ==1}
+      else if ('Nucleus' %in% input$Showloc1){dt1$Nucleus ==1}
+      else if ('Vacuole' %in% input$Showloc1){dt1$Vacuole ==1}
+      else if ('Plasma-membrane' %in% input$Showloc1){dt1$Plasma.membrane ==1}
+      else if ('Plasma-membrane' %in% input$Showloc1){dt1$budneck ==1}) &
+      (if ('All' %in% input$Category1){(dt1$cytosol == 0) | (dt1$cytosol == 1)}
+       else if ('Chaperone' %in% input$Category1){dt1$Category == "Chaperone"}
+       else if ('Fiber-forming' %in% input$Category1){dt1$Category == "Fiber-forming"}
+       else if ('Structural' %in% input$Category1){dt1$Category == 'Structural'}
+       else if ('DNA-related' %in% input$Category1){dt1$Category== 'DNA-related'}
+       else if ('Prion' %in% input$Category1){dt1$Category == 'Prion'}
+       else if ('RNA-related' %in% input$Category1){dt1$Category == 'RNA-related'})
+  },],height = 800,
+      x         = ~strain,
+      y         = ~names,
+      z         = ~Colocalization,
+      type      = 'heatmap',
+      zauto     = if (input$autoscale1 == 'No'){FALSE} else {TRUE},
+      zmin      = z_min,
+      zmax      = z_max,
+      text      = ~text,
+      colors = colorRampPalette(rev(brewer.pal(7, "RdYlBu")))(101),
+      colorbar = list(title=heat_title),
+      yaxis=list(categoryorder = "trace"),
+      source = "hoverplot1source",
+      customdata = if('2' %in% input$keys1){~ image_url2}else{~ image_url}
+    ) %>%
+      event_register('plotly_hover') %>%
+      event_register('plotly_unhover')
+  })
+
+  hover_event1 <- reactive({
+    event_data(event = "plotly_hover", source = "hoverplot1source")
+  })
+
+  unhover_event1 <- reactive({
+    event_data(event = "plotly_unhover", source = "hoverplot1source")
+  })
+
+  hoverplotlyProxy1 <- plotlyProxy("hoverplot1", session)
+
+  observeEvent(unhover_event1(), {
+    hoverplotlyProxy1 %>%
+      plotlyProxyInvoke("relayout", list(images = list(NULL)))
+  })
+
+  observeEvent(hover_event1(), {
+    hoverplotlyProxy1 %>%
+      plotlyProxyInvoke("relayout", list(images = list(
+        list(
+          source = hover_event1()$customdata,
+          xref = 'paper',
+          yref = 'paper',
+          x = hover_event1()$x,
+          y = hover_event1()$y,
+          sizex = .4,
+          sizey = .4,
+          opacity = 1
+        )
+      )))
+  })
+plotlyOutput("hoverplot1")
+
+```
+
+Plate2 {data-width=250}
+==============================================================================
+
+Heatmap_page2 {data-width=250 .sidebar }
+-----------------------------------------------------------------------
+
+```{r Heatmap2_Inputs, echo=FALSE}  
+textInput(inputId = 'descript',label = 'Protein Description', value = 'TOR1')
+selectInput(inputId = 'prot2', label='first protein', 
+                choices = c('1m3u','1pok','1pok-stationary','2cg4','2vyc','2an9','2iv1','1frw','1d7a','1yac','1l6w','2wcv','3n75'),
+            selected = '1m3u')
+selectInput(inputId = 'cluster2',label ='Organize rows',choices = c('No','Cluster','Color Wt','Color Fiber','Color misfolded'
+                                                                       ,'N Wt','N Fiber','N misfolded'),selected = 'No')
+radioButtons(inputId = 'autoscale2',label = 'Autoscale',choices=c('No','Yes'),selected = 'No',inline = TRUE)
+radioButtons(inputId = 'puncta2',label = 'Cells with YFP Puncta only',choices=c('No','Yes'),selected = 'No',inline = TRUE)
+radioButtons(inputId = 'SGA2', label = 'Hits from SGA only', choices = c('No','Yes'),selected = 'No',inline = TRUE)
+radioButtons(inputId = 'showcontrol2',label = 'Show control plate', choices = c("No","Yes"),selected = 'Yes',inline = TRUE)
+selectInput(inputId = 'measure2', label='Which metric to use', 
+                choices = c('10% brightest pixels overlap' , "GFP-RFP Correlation of 70% brigtest pixels",'RFP mean','RFP max','RFP mean normalized','Pearson of largest YFP Foci','Pearson of largest YFP Foci+vicinity','Pearson of 2nd largest YFP Foci','Pearson of 2nd largest YFP Foci+vicinity'),
+                selected = '10% brightest pixels overlap')
+selectInput(inputId = 'Showloc2', label='Show only genes with X localization', 
+                choices = c('All','Cytosol',"Nucleus","Mitochondria","Endoplasmic-Reticulum",'golgi','Peroxisome','Lipid droplet',"Vacuole","Plasma-membrane"), selected = 'All')
+selectInput(inputId = 'Category2', label='Show only genes in X category', 
+                choices = c('All','Chaperone','Autophagy','RNA-related','Oxidative-stress',"Lipid-Related","Stress-related",
+                            "Proteasome","Protease","AA-related",'Marker'),
+                selected = 'All')
+radioButtons(inputId = 'keys',label='',choices = c('1','2'),selected = '1',inline = TRUE)
+h4('press 1 for Red+Green')
+h4('press 2 for Red')
+```  
+  
+## Prot-desciption
+```{r Heatmap2_Prot_desc, echo=FALSE}
+
+
+output$description2 = renderText({
+    descriptions = read.csv(file = "Organism_Genes.csv", header = FALSE)
+    
+    if ((length(as.character(input$descript >= 4 ))) & (as.character(input$descript) %in% descriptions[,1])){
+      print(paste(input$descript,'-',
+        as.character(descriptions[(descriptions[,1] == input$descript) ,6])))
+    }
+  })
+textOutput("description2")
+```
+
+<center> ......................................................................................................... </center>
+
+```{r Heatmap2_Prot_name, echo=FALSE}
+output$protname <- renderText({
+  print(input$prot2)
+  })
+textOutput("protname")
+```
+
+```{r Heatmap2_Heatmap, echo=FALSE}
+#Modify the csv to load and plotly arguements based on buttons
+
+
+  #Modify the csv to load and plotly arguements based on buttons
+  output$hoverplot <- renderPlotly({
+    if ('Yes' %in% input$puncta2){
+      puncta='-onlypuncta'
+    }
+    else{ puncta=''}
+    if('10% brightest pixels overlap' %in% input$measure2){ 
+      heat_title = 'Colocalization'
+      z_max = 0.7
+      z_min = 0 
+      method=''
+      if ('Cluster' %in% input$cluster2){to_order = 'colocalization'} 
+      else {to_order = ''}
+    }
+    else if('GFP-RFP Correlation of 70% brigtest pixels' %in% input$measure2){ 
+      heat_title = 'Correlation'
+      z_max = 0.8
+      z_min = -0.8 
+      method = '-cor'
+      if ('Cluster' %in% input$cluster2){to_order = 'correlation'} 
+      else {to_order = ''}
+    }
+    else if('RFP mean' %in% input$measure2){  
+      heat_title = 'RFP intensity'
+      z_max = 9000
+      z_min = 0 
+      method='-RFPmean'
+      if ('Cluster' %in% input$cluster2){to_order = 'RFPmean'} 
+      else {to_order = ''}
+    }  
+    else if('RFP max' %in% input$measure2){  
+      heat_title = 'RFP Maximal intensity'
+      z_max = 9000
+      z_min = 0 
+      method='-RFPmax'
+      if ('Cluster' %in% input$cluster2){to_order = 'RFPmax'} 
+      else {to_order = ''}
+    }      
+       else if('RFP mean normalized' %in% input$measure2){  
+      heat_title = 'RFP normalized mean intensity'
+      z_max = 1.6
+      z_min = 0.4 
+      method='-RFPmean'
+      if ('Cluster' %in% input$cluster2){to_order = 'RFPmean'} 
+      else {to_order = ''}
+    }      
+    else if('Pearson of largest YFP Foci' %in% input$measure2){  
+      heat_title = 'GFP pcc 1st Foci'
+      z_max = 0.5
+      z_min = -0.5 
+      method='-1pcc'
+      if ('Cluster' %in% input$cluster2){to_order = 'correlation'} 
+      else {to_order = ''}
+      }
+    else if('Pearson of largest YFP Foci+vicinity' %in% input$measure2){  
+      heat_title = 'GFP pcc 1st Foci+surrounding'
+      z_max = 0.5
+      z_min = -0.5 
+      method='-1pcc_enlarge'
+      if ('Cluster' %in% input$cluster2){to_order = 'correlation'} 
+      else {to_order = ''}
+      }
+    else if('Pearson of 2nd largest YFP Foci' %in% input$measure2){  
+      heat_title = 'GFP pcc 2nd Foci'
+      z_max = 0.5
+      z_min = -0.5 
+      method='-2pcc'
+      if ('Cluster' %in% input$cluster2){to_order = 'correlation'} 
+      else {to_order = ''}
+      }
+    else if('Pearson of 2nd largest YFP Foci+vicinity' %in% input$measure2){  
+      heat_title = 'GFP pcc 2nd Foci+surrounding'
+      z_max = 0.5
+      z_min = -0.5 
+      method='-2pcc_enlarge'
+      if ('Cluster' %in% input$cluster2){to_order = 'correlation'} 
+      else {to_order = ''}
+    }
+    
+    if ('N Wt' %in% input$cluster2){to_order = 'N Wt'}
+    else if ('N Fiber' %in% input$cluster2){to_order ='N Fiber'}
+    else if ('N misfolded' %in% input$cluster2){to_order ='N misfolded'}
+    else if ('Color Wt' %in% input$cluster2){to_order ='Color Wt'}
+    else if ('Color Fiber' %in% input$cluster2){to_order ='Color Fiber'}
+    else if ('Color misfolded' %in% input$cluster2){to_order ='Color misfolded'}
+      if (!('3n75'  %in% input$prot2)){
+        if ('RFP mean normalized' %in% input$measure2){
+                  dt = prepare_plate2(name = input$prot2, file = paste0("Data/colocalization2-data-",input$prot2,'-RFPmean',puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2,norm='RFPnorm')
+        }
+        else{dt = prepare_plate2(name = input$prot2, file = paste0("Data/colocalization2-data-",input$prot2,method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+        }
+      ##Adding YFP / Empty column to each plate
+        if ((!('1m3u-stationary' %in% input$prot2)) & (!('1pok-stationary' %in% input$prot2)) & (!('No' %in% input$showcontrol2))){ 
+        dtcontrol = prepare_plate2(name = '1pokY', file = paste0("Data/colocalization2-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+        dtcontrol = rbind(dtcontrol[(which(dtcontrol$strain == 'YFP')) ,] , dtcontrol[(which(dtcontrol$strain == 'Empty')) ,]) 
+        dt=rbind(dt,dtcontrol)
+        
+        }
+      ## Removing column that are not relevant (nothing / 3n75)
+        dt = dt[(which(dt$strain != 'nothing')),]
+        dt = dt[(which(dt$strain != 'X3n75.fiber')),]
+        dt = dt[(which(dt$strain != 'X3n75.wt')),]
+        dt = dt[(which(dt$strain != 'X1pok.fiber2')),]
+      }
+    else{
+      dt =  prepare_plate2(name = '1frw', file = paste0("Data/colocalization2-data-1frw",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+      dtfib2 = prepare_plate2(name = '1yac', file = paste0("Data/colocalization2-data-1yac",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+      dt = rbind(dt[which(dt$strain == 'X3n75.wt'),] , dtfib2[which(dtfib2$strain == 'X3n75.fiber'),])
+      dtcontrol = prepare_plate2(name = '1pokY', file = paste0("Data/colocalization2-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+      dt = rbind(dt,dtcontrol[which(dtcontrol$strain == 'YFP'),] , dtcontrol[which(dtcontrol$strain == 'Empty'),])
+}
+
+    
+ #Plots the heatmap     
+a=    plot_ly(dt[{!(str_detect(dt$names,'empty'))   & 
+        (dt$ncells >= 20) &
+        (if ('All' %in% input$Showloc2){(dt$cytosol == 0) | (dt$cytosol == 1)}
+         else if ('Cytosol' %in% input$Showloc2){dt$cytosol ==1}
+         else if ('Mitochondria' %in% input$Showloc2){dt$mitochondria ==1}
+         else if ('Endoplasmic-Reticulum' %in% input$Showloc2){dt$ER ==1}
+         else if ('Nucleus' %in% input$Showloc2){dt$Nucleus ==1}
+         else if ('golgi' %in% input$Showloc2){dt$golgi ==1}
+         else if ('Vacuole' %in% input$Showloc2){dt$Vacuole ==1}
+         else if ('Peroxisome' %in% input$Showloc2){dt$Peroxisome ==1}
+         else if ('Lipid droplet' %in% input$Showloc2){dt$lipid.droplet ==1}
+         else if ('Plasma-membrane' %in% input$Showloc2){dt$Plasma.membrane ==1}) &
+        (if ('All' %in% input$Category2){(dt$cytosol == 0) | (dt$cytosol == 1)}
+         else if ('Chaperone' %in% input$Category2){dt$Category == "Chaperone"}
+         else if ('Protease' %in% input$Category2){dt$Category == "Protease"}
+         else if ('Proteasome' %in% input$Category2){dt$Category == "Proteasome"}
+         else if ('Structural' %in% input$Category2){dt$Category == 'Structural'}
+         else if ('DNA-related' %in% input$Category2){dt$Category== 'DNA-related'}
+         else if ('Autophagy' %in% input$Category2){dt$Category == 'Autophagy'}
+         else if ('Lipid-Related' %in% input$Category2){dt$Category == 'Lipid-Related'}
+         else if ('AA-related' %in% input$Category2){dt$Category == 'AA-related'}
+         else if ('Stress-related' %in% input$Category2){dt$Category == 'Stress-related'}
+         else if ('Oxidative-stress' %in% input$Category2){dt$Category == 'Oxidative-stress'}
+         else if ('Marker' %in% input$Category2){dt$Category == 'Marker'}
+         else if ('RNA-related' %in% input$Category2){dt$Category == 'RNA-related'}) &
+        (if ('No' %in% input$SGA2){(dt$SGA.hit == 0) | (dt$SGA.hit == 1)} 
+         else if ('Yes' %in% input$SGA2){(dt$SGA.hit == 1)})
+
+  },],height = 800,
+      x         = ~strain,
+      y         = ~names,
+      z         = ~Colocalization,
+      type      = 'heatmap',
+      zauto     = if (input$autoscale2 == 'No'){FALSE} else {TRUE},
+      zmin      = z_min,
+      zmax      = z_max,
+      text      = ~text,
+      colors = colorRampPalette(rev(brewer.pal(7, "RdYlBu")))(101),
+      colorbar = list(title=heat_title),
+      yaxis=list(categoryorder = "trace"),
+      source = "hoverplotsource",
+      customdata = if('2' %in% input$keys){~ image_url2}else{~ image_url}
+    ) %>%
+      event_register('plotly_hover') %>%
+      event_register('plotly_unhover')
+  })
+  
+  hover_event <- reactive({
+    event_data(event = "plotly_hover", source = "hoverplotsource")
+  })
+  
+  unhover_event <- reactive({
+    event_data(event = "plotly_unhover", source = "hoverplotsource")
+  })
+  
+  hoverplotlyProxy <- plotlyProxy("hoverplot", session)
+  
+  observeEvent(unhover_event(), {
+    hoverplotlyProxy %>%
+      plotlyProxyInvoke("relayout", list(images = list(NULL)))
+  })
+  
+  observeEvent(hover_event(), {
+    hoverplotlyProxy %>%
+      plotlyProxyInvoke("relayout", list(images = list(
+        list(
+          source = hover_event()$customdata,
+          xref = 'paper',
+          yref = 'paper',
+          x = hover_event()$x,
+          y = hover_event()$y,
+          sizex = .4,
+          sizey = .4,
+          opacity = 1
+        )
+      )))
+  })
+
+plotlyOutput("hoverplot")
+```
+
+Summary {data-width=250 }
+==============================================================================
+
+Summary_page  {data-width=250 .sidebar }
+-----------------------------------------------------------------------
+
+
+```{r Summary_Inputs, echo=FALSE}
+#textInput(inputId = 'sumprot',label = 'Protein from the heatmap', value = 'GLN1')
+sliderInput(inputId = 'toppercent', label = 'percentage of top hits', min = 1, max = 40, value= 5)
+checkboxGroupInput (inputId = 'SumProt', label = 'Which plates to sum', choices = c('1m3u','1pok','2cg4','2vyc','2an9','2iv1','1frw','1d7a','1yac','1l6w','2wcv','3n75'), inline = TRUE, selected = c('1m3u','1pok','2cg4','2vyc','2an9','2iv1','1frw','1yac'))
+selectInput(inputId = 'smeasure', label='Which metric to use', 
+                choices = c('10% brightest pixels overlap' , "GFP-RFP Correlation of 70% brigtest pixels",'RFP mean','RFP mean normalized','Pearson of largest YFP Foci','Pearson of largest YFP Foci+vicinity','Pearson of 2nd largest YFP Foci','Pearson of 2nd largest YFP Foci+vicinity'),
+                selected = '10% brightest pixels overlap')
+selectInput(inputId = 'scheck', label='Protein / Category / Localization', 
+                choices = c('Protein' , "Category", 'Localization'),selected = 'Protein')
+selectInput(inputId = 'topbottom', label= 'hits are highest / lowest',choices = c('Highest','Lowest'),selected = 'Highest')
+radioButtons(inputId = 'spuncta',label = 'Cells with YFP Puncta only',choices=c('No','Yes'),selected = 'No',inline = TRUE)
+selectInput(inputId = 'sCategory', label='Show YFP-X', choices = c('fiber','misfolded','half','wt'),selected = 'fiber')
+```
+
+## Sum-results
+
+Only for proteins that were imaged in both plates
+
+(-1m3u , -1pok , -2cg4 , -2vyc , -2iv1 , 2an9 , 1frw , 1yac, -1d7a, 1l6w, 2wcv, 3n75)
+
+misfolded - (1m3u , 1pok , 2cg4 , 2an9, -1d7a)
+
+
+```{r Summary_results,echo=FALSE}
+
+##Loads overlap of 10% brightest pixels
+DT::renderDataTable({
+  data = list()
+  data2 = list()
+  data_merged = list()
+  sorteddata = list()
+  #add other params
+  topten_data = list()
+  topten_data2 = list()
+  topten_data_merged = list()
+  cor_data = list()
+  cor_data2 = list()
+  cor_data_merged = list()
+  RFP_data = list()
+  RFP_data2 = list()
+  RFP_data_merged = list()
+  RFPmax_data=list()
+  RFPmax_data2=list()
+  RFPmax_data_merged=list()
+  fibminmis = list()
+  fibminmis2 = list()
+  fibminmis_merged=list()
+  #
+  if('misfolded' %in% input$sCategory){
+    names=c()
+    if ('1m3u' %in% input$SumProt){ names=c(names,'1m3u')}
+    if ('1pok' %in% input$SumProt){ names=c(names,'1pok')}
+    if ('2cg4' %in% input$SumProt){ names=c(names,'2cg4')}
+    if ('1d7a' %in% input$SumProt){ names=c(names,'1d7a')}
+    if ('2an9' %in% input$SumProt){ names=c(names,'2an9')}
+  }
+  ###Add plates for the summation according to input
+  else{ #names= c('1m3u','1pok','2cg4','2vyc','2an9','2iv1','1frw','1yac') 
+    names = c()
+    if ('1m3u' %in% input$SumProt){ names=c(names,'1m3u')}
+    if ('1pok' %in% input$SumProt){ names=c(names,'1pok')}
+    if ('2cg4' %in% input$SumProt){ names=c(names,'2cg4')}
+    if ('2vyc' %in% input$SumProt){ names=c(names,'2vyc')}
+    if ('2iv1' %in% input$SumProt){ names=c(names,'2iv1')}
+    if ('2an9' %in% input$SumProt){ names=c(names,'2an9')}
+    if ('1d7a' %in% input$SumProt){ names=c(names,'1d7a')}
+    if ('1frw' %in% input$SumProt){ names=c(names,'1frw')}
+    if ('1l6w' %in% input$SumProt){ names=c(names,'1l6w')}
+    if ('1yac' %in% input$SumProt){ names=c(names,'1yac')}
+    if ('2wcv' %in% input$SumProt){ names=c(names,'2wcv')}
+    if (('3n75' %in% input$SumProt) & (!('half' %in% input$sCategory))){ names=c(names,'3n75')}
+
+  }
+  ###
+  if ('10% brightest pixels overlap' %in% input$smeasure){type=''}
+  else if ('GFP-RFP Correlation of 70% brigtest pixels' %in% input$smeasure){type='-cor'}
+  else if ('RFP mean' %in% input$smeasure){type='-RFPmean'}
+  else if ('RFP mean normalized' %in% input$smeasure){type='-RFPmean'}
+  else if ('Pearson of largest YFP Foci' %in% input$smeasure){type='-1pcc'}
+  else if ('Pearson of largest YFP Foci+vicinity' %in% input$smeasure){type='-1pcc_enlarge'}
+  else if ('Pearson of 2nd largest YFP Foci' %in% input$smeasure){type='-2pcc'}
+  else if ('Pearson of 2nd largest YFP Foci+vicinity' %in% input$smeasure){type='-2pcc_enlarge'}
+  if ('No' %in% input$spuncta){puncta=''}
+  else if ('Yes' %in% input$spuncta){puncta='-onlypuncta'}
+  for (i in c(1:length(names))){
+    if (names[i] != '3n75'){
+      data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],type,puncta,".csv"),stringsAsFactors = FALSE)
+      data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],type,puncta,".csv"),stringsAsFactors = FALSE)
+
+      if('RFP mean normalized' %in% input$smeasure){
+        data[[i]][,5] = data[[i]][,5] / data[[i]]$wt
+        data[[i]][,4] = data[[i]][,4] / data[[i]]$wt
+        data[[i]][,3] = data[[i]][,3] / data[[i]]$wt
+        data[[i]][,2] = data[[i]][,2] / data[[i]]$wt
+        data2[[i]][,2] = data2[[i]][,2] / data2[[i]]$wt
+        data2[[i]][,3] = data2[[i]][,3] / data2[[i]]$wt
+        data2[[i]][,4] = data2[[i]][,4] / data2[[i]]$wt
+        data2[[i]][,5] = data2[[i]][,5] / data2[[i]]$wt
+      }
+      }
+    if (names[i] == '3n75'){
+      data[[i]] = read.csv(paste0("Data/colocalization-data-1yac",type,puncta,".csv"),stringsAsFactors = FALSE) #'X3n75.fiber'
+      data_2 = read.csv(paste0("Data/colocalization-data-1frw",type,puncta,".csv"),stringsAsFactors = FALSE) #'X3n75.wt'
+      data[[i]] = cbind(data[[i]]$X,data_2$X3n75.wt,data[[i]]$X3n75.fiber,data[[i]][,c(6:14)],data_2$n3n75.wt,data[[i]]$n3n75.fiber)
+
+      
+      data2[[i]] = read.csv(paste0("Data/colocalization2-data-1yac",type,puncta,".csv"),stringsAsFactors = FALSE)
+      data2_2 = read.csv(paste0("Data/colocalization2-data-1frw",type,puncta,".csv"),stringsAsFactors = FALSE)
+      data2[[i]] = cbind(data2[[i]]$X,data2_2$X3n75.wt,data2[[i]]$X3n75.fiber,data2[[i]][,c(6:18)],data2_2$n3n75.wt,data2[[i]]$n3n75.fiber)
+      
+      colnames(data[[i]])[1] = 'X'
+      colnames(data[[i]])[2] = 'wt'
+      colnames(data[[i]])[3] = 'fiber'
+      colnames(data[[i]])[13] = 'nwt'
+      colnames(data[[i]])[14] = 'nfiber'
+      colnames(data2[[i]])[1] = 'X'
+      colnames(data2[[i]])[2] = 'wt'
+      colnames(data2[[i]])[3] = 'fiber'
+      colnames(data2[[i]])[17] = 'nwt'
+      colnames(data2[[i]])[18] = 'nfiber'
+    }
+    removecol = c('Peroxisome','golgi','lipid.droplet','SGA.hit')
+    data[[i]]$plate = 1
+    data2[[i]]$plate = 2
+
+    snum1=c()
+    snum2=c()
+    if('wt' %in% input$sCategory){
+      for (num in c(1:96)) {
+        snum1 = c(snum1,paste0(toString(floor((num-1)/12)*144+num*12-11),"-",toString(floor((num-1)/12)*144+num*12-6))) 
+        snum2 = c(snum2,paste0(toString(480-20*(num-1)+floor((num-1)/12)*720-19),"-",toString(480-20*(num-1)+floor((num-1)/12)*720-10)))
+        }}
+    else if('fiber' %in% input$sCategory){
+      for (num in c(1:96)) {
+        snum1 = c(snum1,paste0(toString(floor((num-1)/12)*144+num*12-5),"-",toString(floor((num-1)/12)*144+num*12)))
+        snum2 = c(snum2,paste0(toString(480-20*(num-1)+floor((num-1)/12)*720-9),"-",toString(480-20*(num-1)+floor((num-1)/12)*720)))
+        }}  
+    else if('misfolded' %in% input$sCategory){
+      for (num in c(1:96)) {
+        snum1 = c(snum1,paste0(toString(288-12*(num-1)+floor((num-1)/12)*432-9),"-",toString(288-12*(num-1)+floor((num-1)/12)*432)))
+        snum2 = c(snum2,paste0(toString(floor((num-1)/12)*240+num*20-9),"-",toString(floor((num-1)/12)*240+num*20)))
+        }}
+    else if('half' %in% input$sCategory){
+      for (num in c(1:96)) {
+        snum1 = c(snum1,paste0(toString(288-12*(num-1)+floor((num-1)/12)*432-11),"-",toString(288-12*(num-1)+floor((num-1)/12)*432-6)))
+        snum2 = c(snum2,paste0(toString(floor((num-1)/12)*240+num*20-19),"-",toString(floor((num-1)/12)*240+num*20-10)))
+        }}
+    
+   data[[i]]$snum=snum1
+   data2[[i]]$snum=snum2
+   data2[[i]] = data2[[i]][c(1:90),!(names(data2[[i]]) %in% removecol)]
+
+    data_merged[[i]]=rbind(data[[i]],data2[[i]])
+    
+    #add other params
+    if (names[i] != '3n75'){
+      
+    topten_data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],'',puncta,".csv"),stringsAsFactors = FALSE)
+    names(topten_data[[i]])[2:5] = paste0('topten_',names(topten_data[[i]])[2:5])
+    topten_data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],'',puncta,".csv"),stringsAsFactors = FALSE)
+    names(topten_data2[[i]])[2:5] = paste0('topten_',names(topten_data2[[i]])[2:5])
+    topten_data2[[i]] = topten_data2[[i]][c(1:90),!(names(topten_data2[[i]]) %in% removecol)]
+    topten_data_merged[[i]]=rbind(topten_data[[i]],topten_data2[[i]])
+    data_merged[[i]]=cbind(data_merged[[i]],topten_data_merged[[i]][2:5])
+    
+    cor_data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],'-cor',puncta,".csv"),stringsAsFactors = FALSE)
+    names(cor_data[[i]])[2:5] = paste0('cor_',names(cor_data[[i]])[2:5])
+    cor_data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],'-cor',puncta,".csv"),stringsAsFactors = FALSE)
+    names(cor_data2[[i]])[2:5] = paste0('cor_',names(cor_data2[[i]])[2:5])
+    cor_data2[[i]] = cor_data2[[i]][c(1:90),!(names(cor_data2[[i]]) %in% removecol)]
+    cor_data_merged[[i]]=rbind(cor_data[[i]],cor_data2[[i]])
+    data_merged[[i]]=cbind(data_merged[[i]],cor_data_merged[[i]][2:5])
+    
+    RFP_data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],'-RFPmean',puncta,".csv"),stringsAsFactors = FALSE)
+    names(RFP_data[[i]])[2:5] = paste0('RFP_',names(RFP_data[[i]])[2:5])
+    RFP_data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],'-RFPmean',puncta,".csv"),stringsAsFactors = FALSE)
+    names(RFP_data2[[i]])[2:5] = paste0('RFP_',names(RFP_data2[[i]])[2:5])
+    RFP_data2[[i]] = RFP_data2[[i]][c(1:90),!(names(RFP_data2[[i]]) %in% removecol)]
+    RFP_data_merged[[i]]=rbind(RFP_data[[i]],RFP_data2[[i]])
+    data_merged[[i]]=cbind(data_merged[[i]],RFP_data_merged[[i]][2:5])
+    
+    RFPmax_data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],'-RFPmax',puncta,".csv"),stringsAsFactors = FALSE)
+    names(RFPmax_data[[i]])[2:5] = paste0('RFPmax_',names(RFPmax_data[[i]])[2:5])
+    RFPmax_data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],'-RFPmax',puncta,".csv"),stringsAsFactors = FALSE)
+    names(RFPmax_data2[[i]])[2:5] = paste0('RFPmax_',names(RFPmax_data2[[i]])[2:5])
+    RFPmax_data2[[i]] = RFPmax_data2[[i]][c(1:90),!(names(RFPmax_data2[[i]]) %in% removecol)]
+    RFPmax_data_merged[[i]]=rbind(RFPmax_data[[i]],RFPmax_data2[[i]])
+    data_merged[[i]]=cbind(data_merged[[i]],RFPmax_data_merged[[i]][2:5])
+  }
+    ###remove strains with n < 20
+    data_merged[[i]]=data_merged[[i]][(data_merged[[i]][paste0('n',input$sCategory)] > 20),]
+    ###
+    if ('Highest' %in% input$topbottom){
+    sorteddata[[i]] = data_merged[[i]][order(data_merged[[i]][,input$sCategory], decreasing = TRUE),]
+    } else{
+      sorteddata[[i]] = data_merged[[i]][order(data_merged[[i]][,input$sCategory], decreasing = FALSE),]
+    }}
+names(data_merged)=names
+names(sorteddata)=names
+
+#Data frame of ranked proteins according to fibers only
+if ('Protein' %in% input$scheck){
+  ranked = data.frame(sorteddata[[1]]$names,stringsAsFactors = FALSE)
+  names(ranked)=names(sorteddata)[[1]]
+  for (i in c(2:length(sorteddata))){
+    ranked=cbind.fill(ranked,sorteddata[[i]]$names)
+}}
+else if ('Category' %in% input$scheck){
+  ranked = data.frame(sorteddata[[1]]$Category,stringsAsFactors = FALSE)
+  names(ranked)=names(sorteddata)[[1]]
+  for (i in c(2:length(sorteddata))){
+    ranked=cbind.fill(ranked,sorteddata[[i]]$Category)
+  }
+
+  ###Getting frequency of each category in the entire screen
+  uniqCat = unique(ranked[[1]])
+  Totfreq = as.integer(rep(0,length(uniqCat)))
+  for (i in c(1:length(uniqCat))){
+    Totfreq[i] = length(ranked[[1]][which(ranked[[1]] == uniqCat[i])])
+  }
+  Totfreq = data.frame(Totfreq)
+  Totfreq$protein = uniqCat
+  ###
+}
+
+  for (i in c(1:length(sorteddata))){
+    sorteddata[[i]]$Localization = ''
+    sorteddata[[i]]$Localization[which(sorteddata[[i]]$cytosol ==1)] = paste0(sorteddata[[i]]$Localization[which(sorteddata[[i]]$cytosol ==1)], 'Cytosol')
+    sorteddata[[i]]$Localization[which(sorteddata[[i]]$Nucleus ==1)] = paste(sorteddata[[i]]$Localization[which(sorteddata[[i]]$Nucleus ==1)], 'Nucleus')
+    sorteddata[[i]]$Localization[which(sorteddata[[i]]$mitochondria ==1)] = paste(sorteddata[[i]]$Localization[which(sorteddata[[i]]$mitochondria ==1)], 'Mitochondria')
+    sorteddata[[i]]$Localization[which(sorteddata[[i]]$ER ==1)] = paste(sorteddata[[i]]$Localization[which(sorteddata[[i]]$ER ==1)], 'Endoplasmic-Reticulum')
+    sorteddata[[i]]$Localization[which(sorteddata[[i]]$Vacuole ==1)] = paste(sorteddata[[i]]$Localization[which(sorteddata[[i]]$Vacuole ==1)], 'Vacuole')
+    sorteddata[[i]]$Localization[which(sorteddata[[i]]$Plasma.membrane ==1)] = paste(sorteddata[[i]]$Localization[which(sorteddata[[i]]$Plasma.membrane ==1)], 'Plasma-membrane')
+  }
+if ('Localization' %in% input$scheck){
+
+  ranked = data.frame(sorteddata[[1]]$Localization,stringsAsFactors = FALSE)
+  names(ranked)=names(sorteddata)[[1]]
+  for (i in c(2:length(sorteddata))){
+    ranked=cbind.fill(ranked,sorteddata[[i]]$Localization)
+  }
+  
+  ###Getting frequency of each category in the entire screen
+  uniqCat = unique(ranked[[1]])
+  Totfreq = as.integer(rep(0,length(uniqCat)))
+  for (i in c(1:length(uniqCat))){
+    Totfreq[i] = length(ranked[[1]][which(ranked[[1]] == uniqCat[i])])
+  }
+  Totfreq = data.frame(Totfreq)
+  Totfreq$protein = uniqCat
+  ###
+}
+names(ranked)=names(sorteddata)
+
+#unique proteins names of top5 hits
+prot_hits = c() # A list with odd number being hits and even the number of times that hit appeared
+z = c() #Tracks the Z (colocalization/intensity) of each hit, sums if the hit repeats in different plates
+topten=c()
+cor=c()
+RFP=c()
+RFPmax=c()
+category=c()
+localization=c()
+plate=c()
+genedesc=c()
+snum=c()
+RFPfibmis=c()
+descriptionssum = read.csv(file = "Organism_Genes.csv", header = FALSE,stringsAsFactors = FALSE)
+for (lib in c(1:length(ranked[c(1:(as.integer(nrow(ranked)/100*(as.numeric(input$toppercent))))),]))){
+  for (prot in ranked[c(1:(as.integer(nrow(ranked)/100*(as.numeric(input$toppercent))))),][[lib]]) {
+    if (!(prot %in% prot_hits)){
+      prot_hits=c(prot_hits,list(prot,1,names(ranked)[lib]))
+      if ('Protein' %in% input$scheck){
+        z=c(z,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],input$sCategory]])
+        if (!('3n75' %in% input$SumProt)){
+        topten=c(topten,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],paste0('topten_',input$sCategory)]])
+        cor=c(cor,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],paste0('cor_',input$sCategory)]])
+        RFP=c(RFP,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],paste0('RFP_',input$sCategory)]])
+        RFPmax=c(RFPmax,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],paste0('RFPmax_',input$sCategory)]])
+        if(('RFP mean normalized' %in% input$smeasure)& !(any(c('2vyc','2iv1','1yac','1frw','1l6w','2wcv','1pok') %in% input$SumProt))){
+          RFPfibmis=c(RFPfibmis,(sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],'fiber']] - sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],'misfolded']]))
+        }
+        }
+        category=c(category,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],"Category"]])
+        localization=c(localization,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],"Localization"]])
+        plate=c(plate,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],"plate"]])
+        snum=c(snum,sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],"snum"]])
+
+        if(length(which(descriptionssum[[1]] == prot)) == 1){
+        genedesc=c(genedesc,descriptionssum[[which(descriptionssum[[1]] == prot),'V6']])
+        }
+        else{genedesc=c(genedesc,'')}
+      }
+    }
+    else{
+      prot_hits[(which(prot_hits == prot)+1)] = as.numeric(prot_hits[(which(prot_hits == prot)+1)])+1
+      prot_hits[(which(prot_hits == prot)+2)] = paste(prot_hits[(which(prot_hits == prot)+2)],names(ranked)[lib])
+      if ('Protein' %in% input$scheck){
+      z[(which(prot_hits == prot)+2)/3] = z[(which(prot_hits == prot)+2)/3] + sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],input$sCategory]]
+      if (!('3n75' %in% input$SumProt)){
+      topten[(which(prot_hits == prot)+2)/3] = topten[(which(prot_hits == prot)+2)/3] + sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],paste0('topten_',input$sCategory)]]
+      cor[(which(prot_hits == prot)+2)/3] = cor[(which(prot_hits == prot)+2)/3] + sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],paste0('cor_',input$sCategory)]]
+      RFP[(which(prot_hits == prot)+2)/3] = RFP[(which(prot_hits == prot)+2)/3] + sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],paste0('RFP_',input$sCategory)]]
+      RFPmax[(which(prot_hits == prot)+2)/3] = RFPmax[(which(prot_hits == prot)+2)/3] + sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],paste0('RFPmax_',input$sCategory)]]
+      if(('RFP mean normalized' %in% input$smeasure)& !(any(c('2vyc','2iv1','1yac','1frw','1l6w','2wcv','1pok') %in% input$SumProt))){
+        RFPfibmis[(which(prot_hits == prot)+2)/3] = RFPfibmis[(which(prot_hits == prot)+2)/3] + (sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],'fiber']] - sorteddata[[lib]][[which(sorteddata[[lib]]$names == prot)[[1]],'misfolded']])
+      }
+      }
+      }
+
+    }
+  }
+}
+top_hit_freq=data.frame(prot_hits[which(c(1:length(prot_hits)) %% 3 == 1)], stringsAsFactors=FALSE)
+top_hit_freq = t(top_hit_freq)
+top_hit_freq = as.data.frame(top_hit_freq, stringsAsFactors=FALSE)
+names(top_hit_freq) = 'protein'
+df = data.frame(prot_hits[which(c(1:length(prot_hits)) %% 3 == 2)], stringsAsFactors=FALSE)
+df = t(df)
+df = as.data.frame(df, stringsAsFactors=FALSE)
+top_hit_freq$freq = df
+dfscreen = data.frame(prot_hits[which(c(1:length(prot_hits)) %% 3 == 0)], stringsAsFactors=FALSE)
+dfscreen = t(dfscreen)
+dfscreen = as.data.frame(dfscreen, stringsAsFactors=FALSE)
+if ('Protein' %in% input$scheck){
+  top_hit_freq[,input$smeasure] = z/top_hit_freq$freq
+  top_hit_freq$screen = dfscreen
+  if (!('3n75' %in% input$SumProt)){
+    if(('RFP mean normalized' %in% input$smeasure) & !(any(c('2vyc','2iv1','1yac','1frw','1l6w','2wcv','1pok') %in% input$SumProt))){
+      top_hit_freq[,'RFP Normalized fiber minus misfolded'] = RFPfibmis/top_hit_freq$freq
+    }
+  top_hit_freq[,'10% brightest pixels overlap'] = topten/top_hit_freq$freq
+  top_hit_freq[,'GFP-RFP Correlation of 70% brigtest pixels'] = cor/top_hit_freq$freq
+  top_hit_freq[,'RFP mean'] = RFP/top_hit_freq$freq
+  top_hit_freq[,'RFP max'] = RFPmax/top_hit_freq$freq
+  }
+  top_hit_freq[,'plate'] = plate
+  top_hit_freq[,'Category'] = category
+  top_hit_freq[,'Localization'] = localization
+  top_hit_freq[,'snum'] = snum
+  top_hit_freq[,'description'] = genedesc
+}
+else if (('Category' %in% input$scheck) | ('Localization' %in% input$scheck)) {
+  top_hit_freq = merge(top_hit_freq,Totfreq, all = FALSE, by = 'protein')
+  top_hit_freq[,'Percent of proteins from category'] = top_hit_freq$Totfreq/186*100
+  #top_hit_freq[,'Percent of hits from category'] = top_hit_freq$freq /(top_hit_freq$Totfreq*length(names))*100
+  top_hit_freq[,'freq / Percent of proteins from category'] = top_hit_freq$freq / (top_hit_freq$`Percent of proteins from category`*length(names))*100
+
+  top_hit_freq=subset(top_hit_freq,select=-Totfreq)
+}
+#print(top_hit_freq)
+datatable(
+  top_hit_freq, extensions = 'FixedColumns',
+  rownames=FALSE,
+  options = list(
+    scrollX = TRUE,
+    fixedColumns = list(leftColumns = 1),
+    autoWidth = TRUE,
+    columnDefs = list(list(width = '1500', targets = if (!('3n75' %in% input$SumProt)){
+                             if('RFP mean' %in% input$smeasure){list(11)} 
+                           else if('10% brightest pixels overlap' %in% input$smeasure){list(11)}
+                           else if ('GFP-RFP Correlation of 70% brigtest pixels' %in% input$smeasure){list(11)}
+                          else if(('RFP mean normalized' %in% input$smeasure) & !(any(c('2vyc','2iv1','1yac','1frw','1l6w','2wcv','1pok') %in% input$SumProt))){list(13)}
+                             else{list(12)} } 
+                           else {list(8)}))
+  )
+)
+})
+```
+
+Help {data-width=250 }
+==============================================================================
+
+Help_page  {data-width=250 .sidebar }
+-----------------------------------------------------------------------
+
+## Help_Results
+
+##### About
+
+This App shows the results of a colocalization screen of mating two libraries.
+* C-swat mScarlet mat-a library 
+* mat-alpha expressing a bacterial protein named after its pdb-code fused to YFP
+
+Plate1 / Plate2 pages consists of mating with different 96-set of mScarlet proteins
+The **'first protein'** tab consists of different protein fused to YFP.
+In Each 384 well plate/heatmap 4 different variant of said protein were fused with the mScarlet set.
+The 4 variants are denoted by the column name.
+Each row is a different RFP protein
+
+##### Heatmap pages (Plate1/2)
+
+**Protein Description** - type a yeast protein name in upper case letter _e.g. TOR1_ to recieve its SGD description
+ 
+**First Protein** - which fused protein-YFP will be shown, each is different imaging plate
+
+**Organize Rows** - Allows to reorganize the rows of the heatmap.  
+  No - rows are organized according to their original arrangement on the plate.  
+  Cluster - rows are organized according to clustering done on _'1m3u'_ plate.  
+  Color - Rows are organized according to the Z-value (color) of a spesific column from higest to lowest.  
+  N - Rows are organized according to the number of cells detected in each well for a spesific column.
+  
+**Autoscale** -  
+  No - Uses predermined z-scale for all plates according to the parameter viewed at.  
+  Yes - autoscales the colors of the heatmap according to highest and lowest values detected
+  
+**Cells with YFP Puncta Only**  
+  No - each heatmap cell is averaged across all yeast detected in that well  
+  Yes - each heatmap cell is averaged across only the cells that were detected to have foci in them. Max/Med YFP intensity >2.5 and Max YFP >100
+  
+**Hits from SGA only**  
+  No - shows all rows  
+  Yes - Shows only rows of RFP proteins who came as hits in the SGA screen where 1pok-yfp and 1m3u-yfp were mated with the yeast KO library. A protein was considered a hit if the size of a mated colony of wt 1pok/1m3u-yfp was considerebly bigger than the same mated colony with fiber phenotype 1pok/1m3u-yfp.
+  
+**Show control plate**  
+  No - Only shows the 4 column of the viewed plate.  
+  Yes - Adds two more columns from the control plate. *Empty* without YFP expression, *YFP* cytosolic, unfused YFP
+  
+**Which metric to use**  
+  10% brightest pixels overlap - for each yeast cell takes the 10% brightest pixels in YFP and the 10% brightest pixels in RFP. then checks the percent of overlap between them *number of overlapping pixels/number of 10% brightest GFP pixels*  
+  GFP-RFP correlation of 70% brightest pixels - for each yeast cell takes the 70% brightest YFP pixels and measures pearson correlation in them between YFP-RFP  
+  RFP-mean - Average of mean RFP for all yeast cells in the well  
+  RFP-max - Average of max RFP for all yeast cells in the well
+  Pearson of Largest YFP Foci - For each yeast cell where at least 1 YFP foci was detected (according to our custom Foci detection JS script) the largest foci region is tested for pearson correlation  
+   Pearson of Largest YFP Foci+vicinity - For each yeast cell where at least 1 YFP foci was detected (according to our custom Foci detection JS script) the largest foci region + 2 pixels in every direction are tested for pearson correlation  
+    Pearson of 2nd Largest YFP Foci - For each yeast cell where at least 2 YFP foci was detected (according to our custom Foci detection JS script) the 2nd largest foci region is tested for pearson correlation  
+     Pearson of Largest YFP Foci+vicinity - For each yeast cell where at least 1 YFP foci was detected (according to our custom Foci detection JS script) the largest foci region + 2 pixels in every direction are tested for pearson correlation  
+
+**Show only genes with X correlation**  
+  Each RFP protein was manually categorized a phenotype according to yeastRGB.org  
+  Cytosol - RFP protein Exshibits mainly cytosolic phenotype  
+  Nucleus - RFP protein Exshibits mainly nuclear phenotype  
+  Mitochondria - RFP protein Exshibits mainly mitochondrial phenotype  
+  Endoplasmic-reticulum - RFP protein Exshibits mainly an ER phenotype  
+  Vacuole - RFP protein Exshibits mainly vacuolar phenotype  
+  budneck - RFP protein Exshibits mainly a bud-neck phenotype  
+  
+**Show only genes in X category**  
+  Each RFP protein was manually categorized a phenotype according to its SGD description  
+  All - Shows all rows  
+  Chaperone -  
+  Autophagy -  
+  RNA-relates -  
+  Oxidative-stress -  
+  Lipid-related -  
+  Proteasome -  
+  Protease -  
+  AA-related -  
+  Marker -  
+  Fiber-forming -  
+  Structural -  
+  Prion -  
+  
+**Press 1 for Red+Green**  
+  1 - When hovering over a heatmap cell it will show an overlayed montage between the YFP phenotype and the RFP phenotype.  
+  2 - When hovering over a heatmap cell it will show only the RFP phenotype.
+  
+##### Summary tab
+
+Page allows summarizing all plates into a set of hits.
+
+**Percentage of top hits** - Choosing where to set the bar for top hits out the ~180 RFP proteins in the screen.  
+  5% will choose only proteins in the top 5% of their metric, 5% ~9 proteins.
+
+**Which plates to sum** - Chooses which plates to take the hits from. Each checked plate will have its *Percentage of top hits* used.  
+
+**Which metric to use** - Chooses which metric to use in order to find the top hits. Same categories as Heatmap tabs.
+
+**Protein / Category / Localization**  
+  Protein - Doesn't aggregate rows for the table
+  Category - Aggregates all proteins belonging into the same category for the table
+  Localization - Aggregates all proteins belonging into the same localization for the table
+
+**Cells with YFP Puncta only** - Whether to use all yeast or only yeast that had Foci detected in them for the Results table.
+
+**Show X-YFP** - Show the Results for each heatmap column, which of the 4 variants of the fusion protein-YFP.
+
+**Results Table**  
+  Protein - Shows the aggrageted rows according to Protein/Category/Localization
+  freq - Show the number of times that row was selected across the plates selected. _e.g a TOR1 a hit in both 1m3u and 2cg4 plate will have its freq at 2_. For aggregated rows the freq will be summed among all proteins that came as hits for that category/localization.  
+  name of the metric - list the average of the selected metric between all plates selected.  
+  Screen - shows all plates that the protein was a hit in (from the selected plates).  
+  plate - Which plate the hit was from
+  Category - the category the protein is in e.g proteasome
+  Localization - proteins cellular localization
+  snum - corresponds to the image numbers in order to find the original images.
+  Percent of proteins from category - what is the percent of proteins belonging to this category out of all RFP proteins in the screen. 
+  freq/Percent of proteins from category - the number of times the aggregated row was a hit divided by all times the row appeared in the screen. This gives the expected number of hits depending on the category size. _e.g when 1m3u and 2cg4 plates are selected and chaperones take ~40% of all proteins in the screen ~70 proteins. now divide the number of chaperone hits (freq) for example 2 by the percent of proteins chaperone take from the screen. in this example chaperone group is heavely under-represented._ 
+  
+
+
