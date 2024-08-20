@@ -18,7 +18,7 @@ library(DT)
 library(devtools)
 source_url("https://raw.githubusercontent.com/Tal-lev/Portfolio/main/Colocalization_Shiny/prepare_plate_functions.R")
 source_url("https://raw.githubusercontent.com/Tal-lev/Portfolio/main/Colocalization_Shiny/prepare_plate_functions2.R")
-
+data_loc = "https://raw.githubusercontent.com/Tal-lev/Portfolio/main/Colocalization_Shiny/Data/"
 ```
 
 
@@ -169,14 +169,14 @@ output$hoverplot1 <- renderPlotly({
     else if ('Color misfolded' %in% input$cluster1){to_order ='Color misfolded'}
   if (!('3n75'  %in% input$prot1)){
     if ('RFP mean normalized' %in% input$measure1){
-      dt1 = prepare_plate(name = input$prot1, file = paste0("Data/colocalization-data-",input$prot1,'-RFPmean',puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1,norm='RFPnorm')
+      dt1 = prepare_plate(name = input$prot1, file = paste0(data_loc,"colocalization-data-",input$prot1,'-RFPmean',puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1,norm='RFPnorm')
     }
     else{
-    dt1 = prepare_plate(name = input$prot1, file = paste0("Data/colocalization-data-",input$prot1,method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dt1 = prepare_plate(name = input$prot1, file = paste0(data_loc,"colocalization-data-",input$prot1,method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
     }
     ##Adding YFP / Empty column to each plate
     if ((!('1m3u-stationary' %in% input$prot1)) & (!('1pok-stationary' %in% input$prot1)) & (!('No' %in% input$showcontrol1))){
-    dt1control = prepare_plate(name = "1pokY", file = paste0("Data/colocalization-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dt1control = prepare_plate(name = "1pokY", file = paste0(data_loc,"colocalization-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
     dt1control = rbind(dt1control[which(dt1control$strain == 'YFP'),] , dt1control[which(dt1control$strain == 'Empty'),])
     dt1=rbind(dt1,dt1control)
     }
@@ -187,11 +187,11 @@ output$hoverplot1 <- renderPlotly({
     dt1 = dt1[(which(dt1$strain != 'X1pok.fiber2')),]
   }
   else{
-    dt1 =  prepare_plate(name = '1frw', file = paste0("Data/colocalization-data-1frw",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dt1 =  prepare_plate(name = '1frw', file = paste0(data_loc,"colocalization-data-1frw",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
     dt1 = dt1[which(dt1$strain == 'X3n75.wt'),]
-    dtfib = prepare_plate(name = '1yac', file = paste0("Data/colocalization-data-1yac",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dtfib = prepare_plate(name = '1yac', file = paste0(data_loc,"colocalization-data-1yac",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
     dt1 = rbind(dt1[which(dt1$strain == 'X3n75.wt'),] , dtfib[which(dtfib$strain == 'X3n75.fiber'),])
-    dt1control = prepare_plate(name = input$prot1, file = paste0("Data/colocalization-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
+    dt1control = prepare_plate(name = input$prot1, file = paste0(data_loc,"colocalization-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta1)
     dt1 = rbind(dt1,dt1control[which(dt1control$strain == 'YFP'),] , dt1control[which(dt1control$strain == 'Empty'),])
 }
 
@@ -412,13 +412,13 @@ textOutput("protname")
     else if ('Color misfolded' %in% input$cluster2){to_order ='Color misfolded'}
       if (!('3n75'  %in% input$prot2)){
         if ('RFP mean normalized' %in% input$measure2){
-                  dt = prepare_plate2(name = input$prot2, file = paste0("Data/colocalization2-data-",input$prot2,'-RFPmean',puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2,norm='RFPnorm')
+                  dt = prepare_plate2(name = input$prot2, file = paste0(data_loc,"colocalization2-data-",input$prot2,'-RFPmean',puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2,norm='RFPnorm')
         }
-        else{dt = prepare_plate2(name = input$prot2, file = paste0("Data/colocalization2-data-",input$prot2,method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+        else{dt = prepare_plate2(name = input$prot2, file = paste0(data_loc,"colocalization2-data-",input$prot2,method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
         }
       ##Adding YFP / Empty column to each plate
         if ((!('1m3u-stationary' %in% input$prot2)) & (!('1pok-stationary' %in% input$prot2)) & (!('No' %in% input$showcontrol2))){ 
-        dtcontrol = prepare_plate2(name = '1pokY', file = paste0("Data/colocalization2-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+        dtcontrol = prepare_plate2(name = '1pokY', file = paste0(data_loc,"colocalization2-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
         dtcontrol = rbind(dtcontrol[(which(dtcontrol$strain == 'YFP')) ,] , dtcontrol[(which(dtcontrol$strain == 'Empty')) ,]) 
         dt=rbind(dt,dtcontrol)
         
@@ -430,10 +430,10 @@ textOutput("protname")
         dt = dt[(which(dt$strain != 'X1pok.fiber2')),]
       }
     else{
-      dt =  prepare_plate2(name = '1frw', file = paste0("Data/colocalization2-data-1frw",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
-      dtfib2 = prepare_plate2(name = '1yac', file = paste0("Data/colocalization2-data-1yac",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+      dt =  prepare_plate2(name = '1frw', file = paste0(data_loc,"colocalization2-data-1frw",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+      dtfib2 = prepare_plate2(name = '1yac', file = paste0(data_loc,"colocalization2-data-1yac",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
       dt = rbind(dt[which(dt$strain == 'X3n75.wt'),] , dtfib2[which(dtfib2$strain == 'X3n75.fiber'),])
-      dtcontrol = prepare_plate2(name = '1pokY', file = paste0("Data/colocalization2-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
+      dtcontrol = prepare_plate2(name = '1pokY', file = paste0(data_loc,"colocalization2-data-1pokY",method,puncta,".csv"),to_order = to_order,onlypuncta =input$puncta2)
       dt = rbind(dt,dtcontrol[which(dtcontrol$strain == 'YFP'),] , dtcontrol[which(dtcontrol$strain == 'Empty'),])
 }
 
@@ -613,8 +613,8 @@ DT::renderDataTable({
   else if ('Yes' %in% input$spuncta){puncta='-onlypuncta'}
   for (i in c(1:length(names))){
     if (names[i] != '3n75'){
-      data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],type,puncta,".csv"),stringsAsFactors = FALSE)
-      data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],type,puncta,".csv"),stringsAsFactors = FALSE)
+      data[[i]] = read.csv(paste0(data_loc,"colocalization-data-",names[i],type,puncta,".csv"),stringsAsFactors = FALSE)
+      data2[[i]] = read.csv(paste0(data_loc,"colocalization2-data-",names[i],type,puncta,".csv"),stringsAsFactors = FALSE)
 
       if('RFP mean normalized' %in% input$smeasure){
         data[[i]][,5] = data[[i]][,5] / data[[i]]$wt
@@ -628,13 +628,13 @@ DT::renderDataTable({
       }
       }
     if (names[i] == '3n75'){
-      data[[i]] = read.csv(paste0("Data/colocalization-data-1yac",type,puncta,".csv"),stringsAsFactors = FALSE) #'X3n75.fiber'
-      data_2 = read.csv(paste0("Data/colocalization-data-1frw",type,puncta,".csv"),stringsAsFactors = FALSE) #'X3n75.wt'
+      data[[i]] = read.csv(paste0(data_loc,"colocalization-data-1yac",type,puncta,".csv"),stringsAsFactors = FALSE) #'X3n75.fiber'
+      data_2 = read.csv(paste0(data_loc,"colocalization-data-1frw",type,puncta,".csv"),stringsAsFactors = FALSE) #'X3n75.wt'
       data[[i]] = cbind(data[[i]]$X,data_2$X3n75.wt,data[[i]]$X3n75.fiber,data[[i]][,c(6:14)],data_2$n3n75.wt,data[[i]]$n3n75.fiber)
 
       
-      data2[[i]] = read.csv(paste0("Data/colocalization2-data-1yac",type,puncta,".csv"),stringsAsFactors = FALSE)
-      data2_2 = read.csv(paste0("Data/colocalization2-data-1frw",type,puncta,".csv"),stringsAsFactors = FALSE)
+      data2[[i]] = read.csv(paste0(data_loc,"colocalization2-data-1yac",type,puncta,".csv"),stringsAsFactors = FALSE)
+      data2_2 = read.csv(paste0(data_loc,"colocalization2-data-1frw",type,puncta,".csv"),stringsAsFactors = FALSE)
       data2[[i]] = cbind(data2[[i]]$X,data2_2$X3n75.wt,data2[[i]]$X3n75.fiber,data2[[i]][,c(6:18)],data2_2$n3n75.wt,data2[[i]]$n3n75.fiber)
       
       colnames(data[[i]])[1] = 'X'
@@ -684,33 +684,33 @@ DT::renderDataTable({
     #add other params
     if (names[i] != '3n75'){
       
-    topten_data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],'',puncta,".csv"),stringsAsFactors = FALSE)
+    topten_data[[i]] = read.csv(paste0(data_loc,"colocalization-data-",names[i],'',puncta,".csv"),stringsAsFactors = FALSE)
     names(topten_data[[i]])[2:5] = paste0('topten_',names(topten_data[[i]])[2:5])
-    topten_data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],'',puncta,".csv"),stringsAsFactors = FALSE)
+    topten_data2[[i]] = read.csv(paste0(data_loc,"colocalization2-data-",names[i],'',puncta,".csv"),stringsAsFactors = FALSE)
     names(topten_data2[[i]])[2:5] = paste0('topten_',names(topten_data2[[i]])[2:5])
     topten_data2[[i]] = topten_data2[[i]][c(1:90),!(names(topten_data2[[i]]) %in% removecol)]
     topten_data_merged[[i]]=rbind(topten_data[[i]],topten_data2[[i]])
     data_merged[[i]]=cbind(data_merged[[i]],topten_data_merged[[i]][2:5])
     
-    cor_data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],'-cor',puncta,".csv"),stringsAsFactors = FALSE)
+    cor_data[[i]] = read.csv(paste0(data_loc,"colocalization-data-",names[i],'-cor',puncta,".csv"),stringsAsFactors = FALSE)
     names(cor_data[[i]])[2:5] = paste0('cor_',names(cor_data[[i]])[2:5])
-    cor_data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],'-cor',puncta,".csv"),stringsAsFactors = FALSE)
+    cor_data2[[i]] = read.csv(paste0(data_loc,"colocalization2-data-",names[i],'-cor',puncta,".csv"),stringsAsFactors = FALSE)
     names(cor_data2[[i]])[2:5] = paste0('cor_',names(cor_data2[[i]])[2:5])
     cor_data2[[i]] = cor_data2[[i]][c(1:90),!(names(cor_data2[[i]]) %in% removecol)]
     cor_data_merged[[i]]=rbind(cor_data[[i]],cor_data2[[i]])
     data_merged[[i]]=cbind(data_merged[[i]],cor_data_merged[[i]][2:5])
     
-    RFP_data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],'-RFPmean',puncta,".csv"),stringsAsFactors = FALSE)
+    RFP_data[[i]] = read.csv(paste0(data_loc,"colocalization-data-",names[i],'-RFPmean',puncta,".csv"),stringsAsFactors = FALSE)
     names(RFP_data[[i]])[2:5] = paste0('RFP_',names(RFP_data[[i]])[2:5])
-    RFP_data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],'-RFPmean',puncta,".csv"),stringsAsFactors = FALSE)
+    RFP_data2[[i]] = read.csv(paste0(data_loc,"colocalization2-data-",names[i],'-RFPmean',puncta,".csv"),stringsAsFactors = FALSE)
     names(RFP_data2[[i]])[2:5] = paste0('RFP_',names(RFP_data2[[i]])[2:5])
     RFP_data2[[i]] = RFP_data2[[i]][c(1:90),!(names(RFP_data2[[i]]) %in% removecol)]
     RFP_data_merged[[i]]=rbind(RFP_data[[i]],RFP_data2[[i]])
     data_merged[[i]]=cbind(data_merged[[i]],RFP_data_merged[[i]][2:5])
     
-    RFPmax_data[[i]] = read.csv(paste0("Data/colocalization-data-",names[i],'-RFPmax',puncta,".csv"),stringsAsFactors = FALSE)
+    RFPmax_data[[i]] = read.csv(paste0(data_loc,"colocalization-data-",names[i],'-RFPmax',puncta,".csv"),stringsAsFactors = FALSE)
     names(RFPmax_data[[i]])[2:5] = paste0('RFPmax_',names(RFPmax_data[[i]])[2:5])
-    RFPmax_data2[[i]] = read.csv(paste0("Data/colocalization2-data-",names[i],'-RFPmax',puncta,".csv"),stringsAsFactors = FALSE)
+    RFPmax_data2[[i]] = read.csv(paste0(data_loc,"colocalization2-data-",names[i],'-RFPmax',puncta,".csv"),stringsAsFactors = FALSE)
     names(RFPmax_data2[[i]])[2:5] = paste0('RFPmax_',names(RFPmax_data2[[i]])[2:5])
     RFPmax_data2[[i]] = RFPmax_data2[[i]][c(1:90),!(names(RFPmax_data2[[i]]) %in% removecol)]
     RFPmax_data_merged[[i]]=rbind(RFPmax_data[[i]],RFPmax_data2[[i]])
