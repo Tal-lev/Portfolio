@@ -1,13 +1,14 @@
 #Loads csv results of colocalization plate. gathers the 4 strains into 1 column
 prepare_plate2 = function (name,file,to_order='',onlypuncta,norm='No'){
+  Imgurl = "https://media.githubusercontent.com/media/Tal-lev/Portfolio/main/Colocalization_Shiny/myImages/"
   #change localization folder
   if ('Yes' %in% onlypuncta){
-      myImgResources2 <- paste0("imgResources/",name,"-2-sel-puncta-R_8-bit-",seq_len(384),".png")
-      myImgResources <- paste0("imgResources/",name,"-2-sel-puncta_8-bit-",seq_len(384),".png")
+      myImgResources2 <- paste0(Imgurl,name,"-2-sel-puncta-R_8-bit-",seq_len(384),".png")
+      myImgResources <- paste0(Imgurl,name,"-2-sel-puncta_8-bit-",seq_len(384),".png")
     }
   else{
-      myImgResources2 <- paste0("imgResources/",name,"-2-sel-R_8-bit-", seq_len(384), ".png")
-      myImgResources <- paste0("imgResources/",name,"-2-sel_8-bit-",seq_len(384),".png")
+      myImgResources2 <- paste0(Imgurl,name,"-2-sel-R_8-bit-", seq_len(384), ".png")
+      myImgResources <- paste0(Imgurl,name,"-2-sel_8-bit-",seq_len(384),".png")
     }
   df = read.csv(file = file)
   if ('RFPnorm' %in% norm){
